@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+        {% if submitted %}
+            <h4 class="offset-by-one">
+                Your Buff.r has been created.
+                <a href="http://web-sniffer.net/?url={{ currentAddress }}/api/v1/{{ buffr.key }}&submit=Submit&http=1.1&gzip=yes&type=GET&uak=11">
+                    Check it out!
+                </a>
+            </h4>
+        {% else %}
+        <div class="one-half">
+            <h3>Add a Buf.fr</h3>
+            <form method="POST">  <!-- target="/addbuffer" -->
+                <label>
+                    API Address: <input id="regularInput" name="apiAddress" required></input>
+                </label>
+                <label>
+                    API Unstable? <input type="checkbox" name="APIUnstable"></input>
+                </label>
+                <label>
+                    API Update Interval:
+                    <select name="updateInterval" required>
+                        <option value=""></option>
+                        {% for key,value in updateIntervalOptions.items %}
+                        <option value="{{ key }}">{{ value }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <div id="error_field" style="display: hidden;">
+                    {{ error_message }}
+                </div>
+                <label>
+                    <input type="submit" class="submit"></input>
+                </label>
+            </form>
+        </div>
+        {% endif %}
+{% endblock %}

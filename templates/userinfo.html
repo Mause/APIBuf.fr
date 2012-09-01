@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+        {% ifnotequal user None %}
+        <div class="column">
+            <h2>{{ user.nickname }}</h2>
+            <br>
+            <ul class="square">
+            {% for buffr in all_buffrs %}
+                <li>
+                    <h5>{{ buffr.apiAddress|safe }}</h5>
+                    Updated every {{ buffr.user_readable_update_interval }}.<br>
+                    Accessable at <a href="http://web-sniffer.net/?url={{ currentAddress }}/api/v1/{{ buffr.key }}&submit=Submit&http=1.1&gzip=yes&type=GET&uak=11">
+                        {{ currentAddress }}/api/v1/{{ buffr.key }}
+                    </a>
+                </li>
+            {% empty %}
+            <h4>You do not have any Buffr's configured. <a href="/addbuffr">Go create one!<a/></h4>
+            {% endfor %}
+            <ul>
+        </div>
+        {% else %}
+        <div class="column">
+            <h4>
+                <a href="/login">Please login</a>
+            </h4>
+        </div>
+        {% endifnotequal %}
+{% endblock %}
