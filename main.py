@@ -206,18 +206,26 @@ class BuffrdDataServerHandler(webapp2.RequestHandler):
         try:
             selected_buffr = Buffr.get(current_buffr_id)
             if selected_buffr:
-                url_to_request = selected_buffr.apiAddress + '/' + relative_api_url
+                if not selected_buffr.apiAddress.endswith('/') and not relative_api_url.startswith('/'):
+                    url_to_request = selected_buffr.apiAddress + '/' + relative_api_url
+                else:
+                    url_to_request = selected_buffr.apiAddress + relative_api_url
 
                 if url_to_request.split(':')[0] not in ['https', 'http', 'ftp']:
                     url_to_request = 'http://' + url_to_request
                 logging.info('url_to_request; ' + str(url_to_request))
 
-                self.response.write(str(self.request.path_info_peek()))
+                # self.response.write(str(self.request.path_info_peek()))
                 self.response.write(get_url_content(url_to_request))
             else:
                 self.error(301)
         except db.BadKeyError:
             self.error(301)
+
+
+class Administrator(webapp2.RequestHandler):
+    def get(self):
+        print
 
 
 app = webapp2.WSGIApplication(
