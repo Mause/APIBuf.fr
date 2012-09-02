@@ -69,14 +69,14 @@ class AddBufferHandler(webapp2.RequestHandler):
     def get(self):
         user = users.get_current_user()
         if not user or 'user_id' not in dir(user):
-            self.redirect('/login')
+            self.redirect(users.create_login_url('/addbuffr'))
         render(self, 'addbuffer.html', {'submitted': False,
             'updateIntervalOptions': user_readable_convertion_table})
 
     def post(self):
         user = users.get_current_user()
         if not user or 'user_id' not in dir(user):
-            self.redirect('/login')
+            self.redirect(users.create_login_url('/addbuffr'))
         apiAddress = self.request.get('apiAddress')
         to_console = []
         to_console.append(apiAddress)
@@ -93,7 +93,7 @@ class AddBufferHandler(webapp2.RequestHandler):
         buffr_instance.update_interval = int(self.request.get('updateInterval'))
         buffr_instance.user_readable_update_interval = (
             user_readable_convertion_table[self.request.get('updateInterval')])
-        # buffr_instance.end_point = buffr_instance.Key()
+        # buffr_instance.end_point = buffr_instance.Key()  # this line will probably be updated in the future
         buffr_instance.buffr_version = current_api_version
         buffr_instance.put()
         logging.info('Added new Buffr to datastore')
@@ -105,25 +105,23 @@ class AddBufferHandler(webapp2.RequestHandler):
 class UserInfoHandler(webapp2.RequestHandler):
     def get(self):
         user = users.get_current_user()
-        # if user:
-        #     query = db.GqlQuery("SELECT * FROM UserInstance WHERE user_id = :1", user.user_id())
-        #     userprefs = query.get()
-        # else:
-        #     self.redirect('/login')
-        # if userprefs != None and len(userprefs) == 0:
-        if True:
+        if user:
             all_buffrs = Buffr.all()
             all_buffrs.filter('user_id =', user.user_id())
             all_buffrs = all_buffrs.fetch(how_many_buffrs_per_user)
             # self.response.write(all_buffrs)
 
-        render(self, 'userinfo.html', {
-            'user': users.get_current_user(),
-            # 'userprefs': userprefs,
-            'currentAddress': self.request.host_url,
-            'all_buffrs': all_buffrs})
+            render(self, 'userinfo.html', {
+                'user': users.get_current_user(),
+                # 'userprefs': userprefs,
+                'currentAddress': self.request.host_url,
+                'all_buffrs': all_buffrs})
+        else:
+            self.redirect(users.create_login_url('/user'))
 
 
+# the following two classes, /login and /logout should only be used
+# by the links on the webpage.
 class LogoutHandler(webapp2.RequestHandler):
     def get(self):
         self.redirect(users.create_logout_url("/"))
