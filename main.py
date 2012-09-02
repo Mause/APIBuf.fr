@@ -67,12 +67,15 @@ class MainHandler(webapp2.RequestHandler):
 
 class AddBufferHandler(webapp2.RequestHandler):
     def get(self):
+        user = users.get_current_user()
+        if not user or 'user_id' not in dir(user):
+            self.redirect('/login')
         render(self, 'addbuffer.html', {'submitted': False,
             'updateIntervalOptions': user_readable_convertion_table})
 
     def post(self):
         user = users.get_current_user()
-        if not user:
+        if not user or 'user_id' not in dir(user):
             self.redirect('/login')
         apiAddress = self.request.get('apiAddress')
         to_console = []
