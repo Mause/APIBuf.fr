@@ -46,20 +46,20 @@
             <h1 class="remove-bottom" style="margin-top: 40px"><a href="/">API Buf.fr</a></h1>
             <h5>Simple API load alleviation</h5>
             <!-- <h5 class="" style="margin-right: 5px; margin-top: 40px;"> -->
-                {% if logged_in %}
-        <span class="offset-by-eleven">
-                <a href="/user">Your Buffr's</a> |
-                <a href="/addbuffr">Add a Buffr</a> |
-                {% else %}
-        <span class="offset-by-fifteen">
-                {% endif %}
-                <a href="{{ appropriate_acct_url }}">
                     {% if logged_in %}
-                    Logout
+            <span class="offset-by-eleven">
+                    <a href="/user">Your Buffr's</a> |
+                    <a href="/addbuffr">Add a Buffr</a> |
                     {% else %}
-                    Login
+            <span class="offset-by-fifteen">
                     {% endif %}
-                </a>
+                    <a href="{{ appropriate_acct_url }}">
+                        {% if logged_in %}
+                        Logout
+                        {% else %}
+                        Login
+                        {% endif %}
+                    </a>
             <!-- </h5> -->
         </span>
         </div>
@@ -72,9 +72,15 @@
 
     <!-- "intelligent" debugging -->
     <script type="text/javascript">
-        var data='{{ to_console|safe }}';
-        console.log('Spiting debug data...');
-        if (data !== '')data=JSON.parse(data);for(i=0;i!==data.length;i++){console.log(data[i]);}
+        debug_data='{{ to_console|safe }}';
+        console.log('Spiting debug_data data...');
+        if (debug_data !== ''){
+            console.log('Size: '+debug_data.length);
+            debug_data=JSON.parse(debug_data);
+            for(frag in debug_data){
+                console.log(frag+': '+debug_data[frag]);
+            }
+        }
         console.log('Done');
     </script>
 

@@ -25,7 +25,7 @@ except ImportError:
     import simplejson as json
 
 from utils import is_valid_url
-from gravatar import get_gravatar
+from utils import get_gravatar
 
 from google.appengine.ext import db
 from google.appengine.api import users
@@ -44,6 +44,13 @@ user_readable_convertion_table = {
     '600000':     '10 minutes',
     '1800000':    '30 minutes',
     '3600000':    '1 hour'}
+
+global online
+try:
+    urlfetch.fetch('http://google.com').read()
+    online = True
+except urlfetch.DownloadError:
+    online=False
 
 
 class UserInstance(db.Model):
@@ -79,9 +86,9 @@ class AddBufferHandler(webapp2.RequestHandler):
         if not user or 'user_id' not in dir(user):
             self.redirect(users.create_login_url('/addbuffr'))
         apiAddress = self.request.get('apiAddress')
-        to_console = []
-        to_console.append(apiAddress)
-        to_console.append(is_valid_url(apiAddress) != None)
+        to_console = {}
+        to_console["apiAddress"] = apiAddress
+        to_console["is_valid_url(apiAddress)"] = (is_valid_url(apiAddress) != None)
 
         buffr_instance = Buffr()
         buffr_instance.apiAddress = apiAddress
@@ -99,7 +106,7 @@ class AddBufferHandler(webapp2.RequestHandler):
         buffr_instance.buffr_version = current_api_version
         buffr_instance.put()
         logging.info('Added new Buffr to datastore')
-        render(self, 'addbuffer.html', {'to_console': json.dumps(to_console),
+        render(self, 'addbuffer.html', {'to_console': to_console,
                                         'submitted': True,
                                         'apiAddress': apiAddress})
 
@@ -113,9 +120,14 @@ class UserInfoHandler(webapp2.RequestHandler):
             all_buffrs = all_buffrs.fetch(how_many_buffrs_per_user)
             # self.response.write(all_buffrs)
 
+            if not online:
+                user_icon = 'images/default_user_80.png'
+            else:
+                user_icon = get_gravatar(user.email())
+
             render(self, 'userinfo.html', {
                 'user': users.get_current_user(),
-                'gravatar': get_gravatar(user.email()),
+                'gravatar': user_icon,
                 'currentAddress': self.request.host_url,
                 'all_buffrs': all_buffrs})
         else:
@@ -143,6 +155,10 @@ def render(handler, filename, template_values):
     else:
         logged_in = False
         appropriate_acct_url = '/login'
+    if "to_console" not in template_values.keys():
+        template_values["to_console"] = {}
+    template_values["to_console"]["online"] = online
+    template_values["to_console"] = json.dumps(template_values["to_console"])
     template_values["currentAddress"] = handler.request.host_url
     template_values['logged_in'] = logged_in
     template_values['appropriate_acct_url'] = appropriate_acct_url
@@ -153,10 +169,10 @@ def render(handler, filename, template_values):
 def get_url_content(buffr_instance, url):
     "this is a caching function, to help keep wait time short"
     result = None
-    lasttime_memcache_key = hashlib.md5(buffr_instance.key(), "sincelasttime")
+    lasttime_memcache_key = hashlib.md5(str(buffr_instance.key()) + "sincelasttime").hexdigest()
     lasttime = memcache.get(lasttime_memcache_key)
 
-    url_hash = hashlib.md5(str(url)).hexdigest()
+    url_hash = hashlib.md5(str(buffr_instance.key()) + str(url)).hexdigest()
 
     logging.info("lasttime: " + str(lasttime))
     if lasttime:
