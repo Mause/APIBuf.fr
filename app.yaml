@@ -1,8 +1,12 @@
 application: apibuffr
-version: 1-0015
+version: 1-0016
 runtime: python27
 api_version: 1
 threadsafe: yes
+
+libraries:
+- name: webapp2
+  version: "2.5.1"
 
 handlers:
 - url: /stylesheets
@@ -18,6 +22,3 @@ handlers:
 - url: .*
   script: main.app
 
-libraries:
-- name: webapp2
-  version: "2.5.1"
