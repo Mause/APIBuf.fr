@@ -19,7 +19,6 @@ import time
 import os
 import hashlib
 import logging
-# import datetime
 try:
     import json
 except ImportError:
@@ -57,6 +56,7 @@ class Buffr(db.Model):
     update_interval = db.IntegerProperty()
     user_readable_update_interval = db.StringProperty()
     buffr_version = db.FloatProperty()
+    last_known_data = db.StringProperty()
     # end_point = db.StringProperty()
 
 
@@ -94,6 +94,7 @@ class AddBufferHandler(webapp2.RequestHandler):
         buffr_instance.user_readable_update_interval = (
             user_readable_convertion_table[self.request.get('updateInterval')])
         # buffr_instance.end_point = buffr_instance.Key()  # this line will probably be updated in the future
+        buffr_instance.last_known_data = None
         buffr_instance.buffr_version = current_api_version
         buffr_instance.put()
         logging.info('Added new Buffr to datastore')
@@ -129,7 +130,8 @@ class LogoutHandler(webapp2.RequestHandler):
 
 class LoginHandler(webapp2.RequestHandler):
     def get(self):
-        self.redirect(users.create_login_url("/"))
+        to_goto = self.request.get('redirect', '/')
+        self.redirect(users.create_login_url(to_goto))
 
 
 def render(handler, filename, template_values):
@@ -147,10 +149,11 @@ def render(handler, filename, template_values):
     handler.response.out.write(template.render(path, template_values))
 
 
-def get_url_content(url):
+def get_url_content(buffr_instance, url):
     "this is a caching function, to help keep wait time short"
     result = None
-    lasttime = memcache.get("sincelasttime")
+    lasttime_memcache_key = hashlib.md5(buffr_instance.key(), "sincelasttime")
+    lasttime = memcache.get(lasttime_memcache_key)
 
     url_hash = hashlib.md5(str(url)).hexdigest()
 
@@ -163,9 +166,11 @@ def get_url_content(url):
             logging.info(
                 "retrieving data from the events server; time > sixty seconds")
             result = urlfetch.fetch(url).read()
+            if buffr_instance.last_known_data == None:
+                pass
         # except urllib2.URLError, e:
         #     result = None
-        memcache.set("sincelasttime", time.time(), 3600)
+        memcache.set(lasttime_memcache_key, time.time(), 3600)
     if result == None:
         logging.info("result was none, trying memcache and then the RFLAN api")
         result = memcache.get(str(url_hash))
@@ -184,7 +189,7 @@ def get_url_content(url):
                 logging.info("url_data" + str(url_data))
                 # logging.info("url_data" + str(dir(url_data))
                 # url_data.getFetchOptions().setDeadline(15)
-                # memcache.set("sincelasttime", time.time(), 3600)
+                # memcache.set(lasttime_memcache_key, time.time(), 3600)
             # except:# urllib2.URLError
             #     handler.error(408)
             result = url_data
@@ -217,7 +222,7 @@ class BuffrdDataServerHandler(webapp2.RequestHandler):
                 logging.info('url_to_request; ' + str(url_to_request))
 
                 # self.response.write(str(self.request.path_info_peek()))
-                self.response.write(get_url_content(url_to_request))
+                self.response.write(get_url_content(selected_buffr, url_to_request))
             else:
                 self.error(301)
         except db.BadKeyError:
@@ -226,7 +231,22 @@ class BuffrdDataServerHandler(webapp2.RequestHandler):
 
 class Administrator(webapp2.RequestHandler):
     def get(self):
-        print
+        user = users.get_current_user()
+        if user and users.is_current_user_admin():
+            render(self, 'adminpage.html', {})
+        elif user:
+            self.redirect('/')
+        else:
+            self.redirect('/login?redirect=/admin')
+
+    def post(self):
+        user = users.get_current_user()
+        if user and users.is_current_user_admin():
+            render(self, 'adminpage.html', {})
+        elif user:
+            self.redirect('/')
+        else:
+            self.redirect('/login?redirect=/admin')
 
 
 app = webapp2.WSGIApplication(
@@ -235,6 +255,7 @@ app = webapp2.WSGIApplication(
         ('/login', LoginHandler),
         ('/logout', LogoutHandler),
         ('/user', UserInfoHandler),
+        ('/admin', Administrator),
         # ('/api/v1/([^/]+)?', BuffrdDataServerHandler),
         ('/api/v1/.*', BuffrdDataServerHandler),
         # ('/api/v1/', rest.Dispatcher),

@@ -2,15 +2,15 @@
 {% block content %}
         <div class="one-third column">
             <h3>What does it do?</h3>
-            <p>API Buf.fr was born when i encountered a problem with some web-based pseudo-RESTful API's. Stability. Suffice to say, i mistakinly overloaded a public API during development for a sales server for a popular regional gaming event <!-- whilst testing a simple <span title="Asynchronous javascript and JSON">AJAJ</span> ticket sales count. This resulted in three hours of down; unacceptable. Of course i could do nothing to fix it from my end. BUT. When i next presented the script to the gaming event staff, --> Too many users requesting the resource at once took it down. I had a problem. I had added a buffer. For the API. An API Buf.fr :D</p>
+            <p>API Buf.fr was born when i encountered a problem with some web-based pseudo-RESTful API's. Stability. Suffice to say, i mistakingly overloaded a public API which <i>had</i> been serving data from a sales server for a popular regional gaming event. <!-- whilst testing a simple <span title="Asynchronous javascript and JSON">AJAJ</span> ticket sales count. This resulted in three hours of down; unacceptable. Of course i could do nothing to fix it from my end. BUT. When i next presented the script to the gaming event staff, --> Too many users requesting the same information continuously took it down. I had a problem. I added a buffer. For the API. An API Buf.fr :D</p>
         </div>
         <div class="one-third column"> 
             <h3>What do i need?</h3>
-            <p>API Buf.fr is fairly simply to setup, but there are some requirements:</p>
+            <p>API Buf.fr is fairly simply to setup, but there are a couple of requirements:</p>
             <ul class="square">
                 <li><strong>Non-personalized content</strong>: The way this service is envisioned to be used is for content that does not change between users. This is imperative.</li>
-                <li><strong>Fast to Start</strong>: It's a tool for rapid development with best practices</li>
-                <li><strong>Style Agnostic</strong>: It provides the most basic, beautiful styles, but is meant to be overwritten.</li>
+                <li><strong>JSON Content</strong>: At this point in time, this service supports only JSON output. XML may be added in the future, provided there is demand.</li>
+                <li><strong>Only supports GET</strong>: Unless someone demands it be added, this service only supports GET requests.</li>
             </ul>
         </div>
         <div class="one-third column">
