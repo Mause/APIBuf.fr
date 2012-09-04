@@ -25,6 +25,7 @@ except ImportError:
     import simplejson as json
 
 from utils import is_valid_url
+from gravatar import get_gravatar
 
 from google.appengine.ext import db
 from google.appengine.api import users
@@ -114,7 +115,7 @@ class UserInfoHandler(webapp2.RequestHandler):
 
             render(self, 'userinfo.html', {
                 'user': users.get_current_user(),
-                # 'userprefs': userprefs,
+                'gravatar': get_gravatar(user.email()),
                 'currentAddress': self.request.host_url,
                 'all_buffrs': all_buffrs})
         else:

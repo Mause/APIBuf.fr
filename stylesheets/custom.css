@@ -1,0 +1,18 @@
+
+.user_icon {
+    float: left;
+}
+
+.username {
+    float: left;
+    margin-top: 17px;
+    margin-left: 8px;
+}
+
+.indent-by-60 {
+    margin-top: 65px;
+}
+
+.float_left {
+    float: left;
+}

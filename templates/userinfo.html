@@ -2,9 +2,10 @@
 {% block content %}
         {% ifnotequal user None %}
         <div class="column">
-            <h2>{{ user.nickname }}</h2>
+            <img class="user_icon" src="{%if gravatar%}{{gravatar}}{%else%}/images/default_user_80.png{%endif%}"></img>
+            <h2  class="username" editable>{{ user.nickname }}</h2>
             <br>
-            <ul class="square">
+            <ul class="square indent-by-60">
             {% for buffr in all_buffrs %}
                 <li>
                     <h5>{{ buffr.apiAddress|safe }}</h5>
@@ -21,7 +22,7 @@
         {% else %}
         <div class="column">
             <h4>
-                <a href="/login">Please login</a>
+                <a href="/login?redirect=/user">Please login</a>
             </h4>
         </div>
         {% endifnotequal %}
