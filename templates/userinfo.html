@@ -3,15 +3,15 @@
         {% ifnotequal user None %}
         <div class="column">
             <img class="user_icon" src="{%if gravatar%}{{gravatar}}{%else%}/images/default_user_80.png{%endif%}"></img>
-            <h2  class="username" editable>{{ user.nickname }}</h2>
+            <h2  class="username">{{ user.nickname }}</h2>
             <br>
-            <ul class="square indent-by-60">
+            <ul class="square indent-by-65">
             {% for buffr in all_buffrs %}
                 <li>
                     <h5>{{ buffr.apiAddress|safe }}</h5>
                     Updated every {{ buffr.user_readable_update_interval }}.<br>
-                    Accessable at <a href="http://web-sniffer.net/?url={{ currentAddress }}/api/v1/{{ buffr.key }}&submit=Submit&http=1.1&gzip=yes&type=GET&uak=11">
-                        {{ currentAddress }}/api/v1/{{ buffr.key }}
+                    Accessable at <a href="http://web-sniffer.net/?url={{ currentAddress }}/api/v1/{{ buffr.end_point }}&submit=Submit&http=1.1&gzip=yes&type=GET&uak=11">
+                        {{ currentAddress }}/api/v1/{{ buffr.end_point }}
                     </a>
                 </li>
             {% empty %}
@@ -19,6 +19,9 @@
             {% endfor %}
             <ul>
         </div>
+        <script type="text/javascript">
+            
+        </script>
         {% else %}
         <div class="column">
             <h4>

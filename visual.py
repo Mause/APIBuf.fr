@@ -14,11 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import webapp2
+import re
 import time
-import os
+# import os
 import hashlib
 import logging
+import webapp2
 try:
     import json
 except ImportError:
@@ -26,12 +27,14 @@ except ImportError:
 
 from utils import is_valid_url
 from utils import get_gravatar
+from functional import render
+from functional import get_url_content
 
 from google.appengine.ext import db
 from google.appengine.api import users
-from google.appengine.api import memcache
-from google.appengine.api import urlfetch
-from google.appengine.ext.webapp import template
+# from google.appengine.api import memcache
+# from google.appengine.api import urlfetch
+# from google.appengine.ext.webapp import template
 
 
 current_api_version = 0.1
@@ -45,13 +48,6 @@ user_readable_convertion_table = {
     '1800000':    '30 minutes',
     '3600000':    '1 hour'}
 
-global online
-try:
-    urlfetch.fetch('http://google.com').read()
-    online = True
-except urlfetch.DownloadError:
-    online=False
-
 
 class UserInstance(db.Model):
     user_id = db.StringProperty()
@@ -61,11 +57,12 @@ class Buffr(db.Model):
     apiAddress = db.StringProperty()
     APIUnstable = db.BooleanProperty()
     user_id = db.StringProperty()
+    user_email = db.EmailProperty()
     update_interval = db.IntegerProperty()
     user_readable_update_interval = db.StringProperty()
     buffr_version = db.FloatProperty()
     last_known_data = db.StringProperty()
-    # end_point = db.StringProperty()
+    end_point = db.StringProperty()
 
 
 class MainHandler(webapp2.RequestHandler):
@@ -98,12 +95,15 @@ class AddBufferHandler(webapp2.RequestHandler):
         else:
             buffr_instance.APIUnstable = APIUnstable
         buffr_instance.user_id = user.user_id()
+        buffr_instance.user_email = user.email()
         buffr_instance.update_interval = int(self.request.get('updateInterval'))
         buffr_instance.user_readable_update_interval = (
             user_readable_convertion_table[self.request.get('updateInterval')])
-        # buffr_instance.end_point = buffr_instance.Key()  # this line will probably be updated in the future
+        # buffr_instance.end_point = hashlib.md5(buffr_instance.key()).hexdigest()  # this line will probably be updated in the future
         buffr_instance.last_known_data = None
         buffr_instance.buffr_version = current_api_version
+        buffr_instance.put()  # this is so we can get a key for the next step
+        buffr_instance.end_point = hashlib.md5(str(buffr_instance.key())).hexdigest()
         buffr_instance.put()
         logging.info('Added new Buffr to datastore')
         render(self, 'addbuffer.html', {'to_console': to_console,
@@ -120,15 +120,13 @@ class UserInfoHandler(webapp2.RequestHandler):
             all_buffrs = all_buffrs.fetch(how_many_buffrs_per_user)
             # self.response.write(all_buffrs)
 
-            if not online:
-                user_icon = 'images/default_user_80.png'
-            else:
-                user_icon = get_gravatar(user.email())
+            user_icon = get_gravatar(user.email())
 
             render(self, 'userinfo.html', {
                 'user': users.get_current_user(),
                 'gravatar': user_icon,
                 'currentAddress': self.request.host_url,
+                'to_console': {'gravatar': user_icon},
                 'all_buffrs': all_buffrs})
         else:
             self.redirect(users.create_login_url('/user'))
@@ -147,75 +145,6 @@ class LoginHandler(webapp2.RequestHandler):
         self.redirect(users.create_login_url(to_goto))
 
 
-def render(handler, filename, template_values):
-    user = users.get_current_user()
-    if user:
-        logged_in = True
-        appropriate_acct_url = '/logout'
-    else:
-        logged_in = False
-        appropriate_acct_url = '/login'
-    if "to_console" not in template_values.keys():
-        template_values["to_console"] = {}
-    template_values["to_console"]["online"] = online
-    template_values["to_console"] = json.dumps(template_values["to_console"])
-    template_values["currentAddress"] = handler.request.host_url
-    template_values['logged_in'] = logged_in
-    template_values['appropriate_acct_url'] = appropriate_acct_url
-    path = os.path.join(os.path.dirname(__file__), 'templates/' + filename)
-    handler.response.out.write(template.render(path, template_values))
-
-
-def get_url_content(buffr_instance, url):
-    "this is a caching function, to help keep wait time short"
-    result = None
-    lasttime_memcache_key = hashlib.md5(str(buffr_instance.key()) + "sincelasttime").hexdigest()
-    lasttime = memcache.get(lasttime_memcache_key)
-
-    url_hash = hashlib.md5(str(buffr_instance.key()) + str(url)).hexdigest()
-
-    logging.info("lasttime: " + str(lasttime))
-    if lasttime:
-        logging.info("difference: " + str(time.time() - lasttime))
-    if lasttime != None and (time.time() - lasttime) > 60:
-        # try:
-        if True:
-            logging.info(
-                "retrieving data from the events server; time > sixty seconds")
-            result = urlfetch.fetch(url).read()
-            if buffr_instance.last_known_data == None:
-                pass
-        # except urllib2.URLError, e:
-        #     result = None
-        memcache.set(lasttime_memcache_key, time.time(), 3600)
-    if result == None:
-        logging.info("result was none, trying memcache and then the RFLAN api")
-        result = memcache.get(str(url_hash))
-        if result != None:
-            logging.info('Memcache get successful ' + str(result))
-            return result
-        else:
-            logging.info('Getting the result from the RFLAN api')
-            # try:
-            if True:
-#               HTTPRequest request = new HTTPRequest(
-    # fetchurl, HTTPMethod.POST);
-#               request.getFetchOptions().setDeadline(10d);
-                logging.info('URL: ' + url)
-                url_data = urlfetch.fetch(url).content
-                logging.info("url_data" + str(url_data))
-                # logging.info("url_data" + str(dir(url_data))
-                # url_data.getFetchOptions().setDeadline(15)
-                # memcache.set(lasttime_memcache_key, time.time(), 3600)
-            # except:# urllib2.URLError
-            #     handler.error(408)
-            result = url_data
-            memcache.set(str(url_hash), result, 3600)
-            return result
-    else:
-        return result
-
-
 class BuffrdDataServerHandler(webapp2.RequestHandler):
     def get(self):
         api_path = 'api/v1'
@@ -223,27 +152,41 @@ class BuffrdDataServerHandler(webapp2.RequestHandler):
         path_data = [x for x in path_data if x != '']
         if path_data[0:2] == api_path.split('/'):
             path_data = path_data[2:]
-        current_buffr_id = path_data[0]
+        # current_buffr_id = path_data[0]
+
+        buffr_id_regex = re.compile(r'^%s/(?P<buffr_id>.+)' % (api_path))
+        match = re.search(buffr_id_regex, self.request.path)
+
         relative_api_url = '/'.join(path_data[1:])
 
-        try:
-            selected_buffr = Buffr.get(current_buffr_id)
-            if selected_buffr:
-                if not selected_buffr.apiAddress.endswith('/') and not relative_api_url.startswith('/'):
-                    url_to_request = selected_buffr.apiAddress + '/' + relative_api_url
+        if match:
+            current_buffr_id = match.groupdict()['buffr_id']
+            logging.info('current_buffr_id = %s' % (match.groupdict()['buffr_id']))
+            try:
+                query = Buffr.all()
+                query.filter('end_point =', current_buffr_id)
+                selected_buffr = query.fetch(1)[0]
+
+                if selected_buffr:
+                    if not selected_buffr.apiAddress.endswith('/') and not relative_api_url.startswith('/'):
+                        url_to_request = selected_buffr.apiAddress + '/' + relative_api_url
+                    else:
+                        url_to_request = selected_buffr.apiAddress + relative_api_url
+
+                    if url_to_request.split(':')[0] not in ['https', 'http', 'ftp']:
+                        url_to_request = 'http://' + url_to_request
+                    logging.info('url_to_request; ' + str(url_to_request))
+
+                    self.response.write(get_url_content(selected_buffr, url_to_request, self))
                 else:
-                    url_to_request = selected_buffr.apiAddress + relative_api_url
-
-                if url_to_request.split(':')[0] not in ['https', 'http', 'ftp']:
-                    url_to_request = 'http://' + url_to_request
-                logging.info('url_to_request; ' + str(url_to_request))
-
-                # self.response.write(str(self.request.path_info_peek()))
-                self.response.write(get_url_content(selected_buffr, url_to_request))
-            else:
+                    self.response.write('<!-- no such buffr -->')
+                    self.error(301)
+            except db.BadKeyError:
+                self.response.write('<!-- no such buffr -->')
                 self.error(301)
-        except db.BadKeyError:
-            self.error(301)
+        else:
+            self.response.write('<!-- malformed url -->')
+            # self.error(301)
 
 
 class Administrator(webapp2.RequestHandler):
@@ -266,16 +209,29 @@ class Administrator(webapp2.RequestHandler):
             self.redirect('/login?redirect=/admin')
 
 
+class TestHandler(webapp2.RequestHandler):
+    def get(self):
+        self.response.write('<h2>testing</h2>')
+        self.response.write(self.request.get('poll_id'))
+
+# class CurrentTimeHandler(webapp2.RequestHandler):
+#     def get(self):
+#         self.response.write(json.dumps({'time': (time.ctime())}))
+#         (r'/cur_time.*', CurrentTimeHandler),  # this is for offline testing purposes
+
+
 app = webapp2.WSGIApplication(
     [
-        ('/addbuffr', AddBufferHandler),
-        ('/login', LoginHandler),
-        ('/logout', LogoutHandler),
-        ('/user', UserInfoHandler),
-        ('/admin', Administrator),
-        # ('/api/v1/([^/]+)?', BuffrdDataServerHandler),
-        ('/api/v1/.*', BuffrdDataServerHandler),
+        (r'/addbuffr', AddBufferHandler),
+        (r'/login', LoginHandler),
+        (r'/logout', LogoutHandler),
+        (r'/user', UserInfoHandler),
+        (r'/admin', Administrator),
+        # (r'/polls/(?P<poll_id>\d+)', TestHandler),
+        (r'/polls/', TestHandler),
+        # (r'/api/v1/([^/]+)?', BuffrdDataServerHandler),
+        (r'/api/v1/.*', BuffrdDataServerHandler),
         # ('/api/v1/', rest.Dispatcher),
-        ('/', MainHandler)
+        (r'/', MainHandler)
     ],
     debug=True)

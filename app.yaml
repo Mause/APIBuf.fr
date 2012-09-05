@@ -9,6 +9,9 @@ libraries:
   version: "2.5.1"
 
 handlers:
+- url: /js
+  static_dir: js
+
 - url: /stylesheets
   static_dir: stylesheets
 
@@ -20,5 +23,5 @@ handlers:
   upload: favicon\.ico
 
 - url: .*
-  script: main.app
+  script: visual.app
 

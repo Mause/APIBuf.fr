@@ -3,7 +3,7 @@ import urllib
 import hashlib
 
 
-def get_gravatar(email, size=80, default="http://www.example.com/default.jpg"):
+def get_gravatar(email, size=80, default="/images/default_user_80.png"):
     # construct the url
     gravatar_url = "http://www.gravatar.com/avatar/" + hashlib.md5(email.lower()).hexdigest() + "?"
     gravatar_url += urllib.urlencode({'d': default, 's': str(size)})
