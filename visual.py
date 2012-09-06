@@ -14,16 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import re
-import time
-# import os
 import hashlib
 import logging
 import webapp2
-try:
-    import json
-except ImportError:
-    import simplejson as json
+# try:
+#     import json
+# except ImportError:
+#     import simplejson as json
 
 from utils import is_valid_url
 from utils import get_gravatar
@@ -146,44 +143,36 @@ class LoginHandler(webapp2.RequestHandler):
 
 
 class BuffrdDataServerHandler(webapp2.RequestHandler):
-    def get(self):
-        api_path = 'api/v1'
-        path_data = (self.request.path).split('/')
-        path_data = [x for x in path_data if x != '']
-        if path_data[0:2] == api_path.split('/'):
-            path_data = path_data[2:]
-        # current_buffr_id = path_data[0]
+    def get(self, current_buffr_id, wut, relative_api_url):
+        logging.info('current_buffr_id = %s' % (current_buffr_id))
+        logging.info('relative_url = %s' % (relative_api_url))
 
-        buffr_id_regex = re.compile(r'^%s/(?P<buffr_id>.+)' % (api_path))
-        match = re.search(buffr_id_regex, self.request.path)
+        if current_buffr_id:
+            if not relative_api_url:
+                relative_api_url = '/'
+            else:
+                relative_api_url = '/' + relative_api_url
 
-        relative_api_url = '/'.join(path_data[1:])
-
-        if match:
-            current_buffr_id = match.groupdict()['buffr_id']
-            logging.info('current_buffr_id = %s' % (match.groupdict()['buffr_id']))
-            try:
-                query = Buffr.all()
-                query.filter('end_point =', current_buffr_id)
+            query = Buffr.all()
+            query.filter('end_point =', current_buffr_id)
+            if len(query.fetch(1)) != 0:
                 selected_buffr = query.fetch(1)[0]
 
-                if selected_buffr:
-                    if not selected_buffr.apiAddress.endswith('/') and not relative_api_url.startswith('/'):
-                        url_to_request = selected_buffr.apiAddress + '/' + relative_api_url
-                    else:
-                        url_to_request = selected_buffr.apiAddress + relative_api_url
-
-                    if url_to_request.split(':')[0] not in ['https', 'http', 'ftp']:
-                        url_to_request = 'http://' + url_to_request
-                    logging.info('url_to_request; ' + str(url_to_request))
-
-                    self.response.write(get_url_content(selected_buffr, url_to_request, self))
+                # ensure that there is a / between the apiAddress and the relative url
+                if not selected_buffr.apiAddress.endswith('/') and not relative_api_url.startswith('/'):
+                    url_to_request = selected_buffr.apiAddress + '/' + relative_api_url
                 else:
-                    self.response.write('<!-- no such buffr -->')
-                    self.error(301)
-            except db.BadKeyError:
+                    url_to_request = selected_buffr.apiAddress + relative_api_url
+
+                # ensure that the api address has a valid protocol extension
+                if url_to_request.split(':')[0] not in ['https', 'http', 'ftp']:
+                    url_to_request = 'http://' + url_to_request
+                logging.info('url_to_request; ' + str(url_to_request))
+
+                self.response.write(get_url_content(selected_buffr, url_to_request, self))
+            else:
                 self.response.write('<!-- no such buffr -->')
-                self.error(301)
+                # self.error(301)
         else:
             self.response.write('<!-- malformed url -->')
             # self.error(301)
@@ -230,7 +219,8 @@ app = webapp2.WSGIApplication(
         # (r'/polls/(?P<poll_id>\d+)', TestHandler),
         (r'/polls/', TestHandler),
         # (r'/api/v1/([^/]+)?', BuffrdDataServerHandler),
-        (r'/api/v1/.*', BuffrdDataServerHandler),
+        # (r'/api/v1/.*', BuffrdDataServerHandler),
+        (r'/api/v1/(?P<buffr_id>\w+)($|/(?P<relative_url>.+))', BuffrdDataServerHandler),
         # ('/api/v1/', rest.Dispatcher),
         (r'/', MainHandler)
     ],

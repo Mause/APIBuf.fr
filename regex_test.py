@@ -1,18 +1,20 @@
 import re
 
-regex = re.compile(r'^polls/(?P<buffr_id>.+)/{0,1}(?P<secondary>){0,1}$')
 
-# (|/(?P<relative_url>.+))
+api_path = 'api/v1'
+buffr_id_regex = re.compile(
+    r'^/%s/(?P<buffr_id>\w+)($|/(?P<relative_url>.+))' % (api_path))
+
 
 possibles = [
-'polls/world/optional',
-'polls/hello/optional_world/',
-'polls/dominic/',
+'/api/v1/world_optional/',
+'/api/v1/65771f565ed064f98636a0fef8757fde',
+'/api/v1/65771f565ed064f98636a0fef8757fde/current',
 'polls/']
 
 for pos in possibles:
     print pos + ':',
-    x = regex.search(pos)
-    if x:
-        print x.groupdict()
+    match = re.search(buffr_id_regex, pos)
+    if match:
+        print match.groupdict()
     print
