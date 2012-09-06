@@ -208,6 +208,13 @@ class TestHandler(webapp2.RequestHandler):
 #         self.response.write(json.dumps({'time': (time.ctime())}))
 #         (r'/cur_time.*', CurrentTimeHandler),  # this is for offline testing purposes
 
+buffr_server_regex = (
+    r'/api/v1/'                   # Match the beginning of the url
+    r'(?P<buffr_id>\w{32})'       # match the md5 sum of the buffr, 32 of any word char
+    r'($|/(?P<relative_url>.+))'  # optionally, match a relative url of one or more chars in length.
+                                  # else, match the end of the url
+    )
+
 
 app = webapp2.WSGIApplication(
     [
@@ -216,12 +223,7 @@ app = webapp2.WSGIApplication(
         (r'/logout', LogoutHandler),
         (r'/user', UserInfoHandler),
         (r'/admin', Administrator),
-        # (r'/polls/(?P<poll_id>\d+)', TestHandler),
-        (r'/polls/', TestHandler),
-        # (r'/api/v1/([^/]+)?', BuffrdDataServerHandler),
-        # (r'/api/v1/.*', BuffrdDataServerHandler),
-        (r'/api/v1/(?P<buffr_id>\w{32})($|/(?P<relative_url>.+))', BuffrdDataServerHandler),
-        # ('/api/v1/', rest.Dispatcher),
+        (buffr_server_regex, BuffrdDataServerHandler),
         (r'/', MainHandler)
     ],
     debug=True)
