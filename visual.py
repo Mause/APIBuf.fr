@@ -220,7 +220,7 @@ app = webapp2.WSGIApplication(
         (r'/polls/', TestHandler),
         # (r'/api/v1/([^/]+)?', BuffrdDataServerHandler),
         # (r'/api/v1/.*', BuffrdDataServerHandler),
-        (r'/api/v1/(?P<buffr_id>\w+)($|/(?P<relative_url>.+))', BuffrdDataServerHandler),
+        (r'/api/v1/(?P<buffr_id>\w{32})($|/(?P<relative_url>.+))', BuffrdDataServerHandler),
         # ('/api/v1/', rest.Dispatcher),
         (r'/', MainHandler)
     ],
