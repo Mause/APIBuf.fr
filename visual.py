@@ -210,9 +210,9 @@ class TestHandler(webapp2.RequestHandler):
 
 buffr_server_regex = (
     r'/api/v1/'                   # Match the beginning of the url
-    r'(?P<buffr_id>\w{32})'       # match the md5 sum of the buffr, 32 of any word char
-    r'($|/(?P<relative_url>.+))'  # optionally, match a relative url of one or more chars in length.
-                                  # else, match the end of the url
+    r'(?P<buffr_id>\w{32})'       # match the md5 sum of the buffr, 32 instances of any word character
+    r'($|/(?P<relative_url>.+))'  # optionally, match a relative URL of one or more chars in length.
+                                  # else, match the end of the URL
     )
 
 
