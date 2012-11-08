@@ -29,21 +29,21 @@ from functional import get_url_content
 
 from google.appengine.ext import db
 from google.appengine.api import users
-# from google.appengine.api import memcache
+from google.appengine.api import memcache
 # from google.appengine.api import urlfetch
 # from google.appengine.ext.webapp import template
 
 
 current_api_version = 0.1
 how_many_buffrs_per_user = 15
-user_readable_convertion_table = {
-    '30000':      '30 seconds',
-    '60000':      '1 minute',
-    '180000':     '3 minutes',
-    '300000':     '5 minutes',
-    '600000':     '10 minutes',
-    '1800000':    '30 minutes',
-    '3600000':    '1 hour'}
+user_readable_convertion_table = [
+    ('30000', '30 seconds'),
+    ('60000', '1 minute'),
+    ('180000', '3 minutes'),
+    ('300000', '5 minutes'),
+    ('600000', '10 minutes'),
+    ('1800000', '30 minutes'),
+    ('3600000', '1 hour')]
 
 
 class UserInstance(db.Model):
@@ -51,6 +51,7 @@ class UserInstance(db.Model):
 
 
 class Buffr(db.Model):
+    apiName = db.StringProperty()
     apiAddress = db.StringProperty()
     APIUnstable = db.BooleanProperty()
     user_id = db.StringProperty()
@@ -85,6 +86,7 @@ class AddBufferHandler(webapp2.RequestHandler):
         to_console["is_valid_url(apiAddress)"] = (is_valid_url(apiAddress) != None)
 
         buffr_instance = Buffr()
+        buffr_instance.apiName = self.request.get('apiName')
         buffr_instance.apiAddress = apiAddress
         APIUnstable = self.request.get('APIUnstable')
         if APIUnstable not in [True, False]:
@@ -95,7 +97,7 @@ class AddBufferHandler(webapp2.RequestHandler):
         buffr_instance.user_email = user.email()
         buffr_instance.update_interval = int(self.request.get('updateInterval'))
         buffr_instance.user_readable_update_interval = (
-            user_readable_convertion_table[self.request.get('updateInterval')])
+            filter(lambda x: x[0] == self.request.get('updateInterval'), user_readable_convertion_table)[0][1])
         # buffr_instance.end_point = hashlib.md5(buffr_instance.key()).hexdigest()  # this line will probably be updated in the future
         buffr_instance.last_known_data = None
         buffr_instance.buffr_version = current_api_version
@@ -112,10 +114,12 @@ class UserInfoHandler(webapp2.RequestHandler):
     def get(self):
         user = users.get_current_user()
         if user:
-            all_buffrs = Buffr.all()
-            all_buffrs.filter('user_id =', user.user_id())
-            all_buffrs = all_buffrs.fetch(how_many_buffrs_per_user)
-            # self.response.write(all_buffrs)
+            all_buffrs = memcache.get('%s-buffrs' % user.user_id())
+            if not all_buffrs:
+                all_buffrs = Buffr.all()
+                all_buffrs.filter('user_id =', user.user_id())
+                all_buffrs = all_buffrs.fetch(how_many_buffrs_per_user)
+                memcache.set('%s-buffrs' % user.user_id(), all_buffrs)
 
             user_icon = get_gravatar(user.email())
 

@@ -8,7 +8,8 @@
             <ul class="square indent-by-65">
             {% for buffr in all_buffrs %}
                 <li>
-                    <h5>{{ buffr.apiAddress|safe }}</h5>
+                    <h4>{{ buffr.apiName }}</h4>
+                    <!-- {{ buffr.apiAddress|safe }} -->
                     Updated every {{ buffr.user_readable_update_interval }}.<br>
                     Accessable at <a href="http://web-sniffer.net/?url={{ currentAddress }}/api/v1/{{ buffr.end_point }}&submit=Submit&http=1.1&gzip=yes&type=GET&uak=11">
                         {{ currentAddress }}/api/v1/{{ buffr.end_point }}

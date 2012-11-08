@@ -12,6 +12,9 @@
             <h3>Add a Buf.fr</h3>
             <form method="POST">
                 <label>
+                    API Name: <input id="regularInput" name="apiName" required></input>
+                </label>
+                <label>
                     API Address: <input id="regularInput" name="apiAddress" required></input>
                 </label>
                 <label>
@@ -21,8 +24,8 @@
                     API Update Interval:
                     <select name="updateInterval" required>
                         <option value=""></option>
-                        {% for key,value in updateIntervalOptions.items %}
-                        <option value="{{ key }}">{{ value }}</option>
+                        {% for tuple in updateIntervalOptions %}
+                        <option value="{{ tuple.0 }}">{{ tuple.1 }}</option>
                         {% endfor %}
                     </select>
                 </label>
