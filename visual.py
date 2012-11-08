@@ -138,7 +138,7 @@ class LogoutHandler(webapp2.RequestHandler):
 
 class LoginHandler(webapp2.RequestHandler):
     def get(self):
-        to_goto = self.request.get('redirect', '/')
+        to_goto = self.request.get('redirect', '/user')
         self.redirect(users.create_login_url(to_goto))
 
 
@@ -178,6 +178,11 @@ class BuffrdDataServerHandler(webapp2.RequestHandler):
             # self.error(301)
 
 
+class BuffrdDataFlusherHandler(webapp2.RequestHandler):
+    def get(self, buffr_id):
+        self.response.write('Hey! GTFO!')
+
+
 class Administrator(webapp2.RequestHandler):
     def get(self):
         user = users.get_current_user()
@@ -215,6 +220,11 @@ buffr_server_regex = (
                                   # else, match the end of the URL
     )
 
+buffr_flusher_regex = (
+    r'/api/v1/flush/'                   # Match the beginning of the url
+    r'(?P<buffr_id>\w{32})'       # match the md5 sum of the buffr, 32 instances of any word character
+    )
+
 
 app = webapp2.WSGIApplication(
     [
@@ -223,6 +233,7 @@ app = webapp2.WSGIApplication(
         (r'/logout', LogoutHandler),
         (r'/user', UserInfoHandler),
         (r'/admin', Administrator),
+        (buffr_flusher_regex, BuffrdDataFlusherHandler),
         (buffr_server_regex, BuffrdDataServerHandler),
         (r'/', MainHandler)
     ],
