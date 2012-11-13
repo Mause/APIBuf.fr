@@ -17,36 +17,33 @@
 import hashlib
 import logging
 import webapp2
-# try:
-#     import json
-# except ImportError:
-#     import simplejson as json
 
 from utils import is_valid_url
 from utils import get_gravatar
 from functional import render
-from functional import get_url_content
+from functional import get_buffr_content
 
 from google.appengine.ext import db
 from google.appengine.api import users
 from google.appengine.api import memcache
-# from google.appengine.api import urlfetch
-# from google.appengine.ext.webapp import template
+from google.appengine.api import urlfetch
+from google.appengine.api import taskqueue
 
 
 current_api_version = 0.1
 how_many_buffrs_per_user = 15
 user_readable_convertion_table = [
-    ('30000', '30 seconds'),
-    ('60000', '1 minute'),
-    ('180000', '3 minutes'),
-    ('300000', '5 minutes'),
-    ('600000', '10 minutes'),
-    ('1800000', '30 minutes'),
-    ('3600000', '1 hour')]
+    ('30000', '30 seconds', '30 seconds'),
+    ('60000', '1 minute', 'minute'),
+    ('180000', '3 minutes', '3 minutes'),
+    ('300000', '5 minutes', '5 minutes'),
+    ('600000', '10 minutes', '10 minutes'),
+    ('1800000', '30 minutes', '30 minutes'),
+    ('3600000', '1 hour', 'hour')]
 
 
 class UserInstance(db.Model):
+    alpha_user = db.BooleanProperty()
     user_id = db.StringProperty()
 
 
@@ -60,6 +57,7 @@ class Buffr(db.Model):
     user_readable_update_interval = db.StringProperty()
     buffr_version = db.FloatProperty()
     last_known_data = db.StringProperty()
+    known_as_valid = db.BooleanProperty()
     end_point = db.StringProperty()
 
 
@@ -96,15 +94,17 @@ class AddBufferHandler(webapp2.RequestHandler):
         buffr_instance.user_id = user.user_id()
         buffr_instance.user_email = user.email()
         buffr_instance.update_interval = int(self.request.get('updateInterval'))
-        buffr_instance.user_readable_update_interval = (
-            filter(lambda x: x[0] == self.request.get('updateInterval'), user_readable_convertion_table)[0][1])
-        # buffr_instance.end_point = hashlib.md5(buffr_instance.key()).hexdigest()  # this line will probably be updated in the future
+        for possibility in user_readable_convertion_table:
+            logging.info(str((possibility[0], buffr_instance.update_interval)))
+            if int(possibility[0]) == buffr_instance.update_interval:
+                buffr_instance.user_readable_update_interval = possibility[2]
+        buffr_instance.end_point = hashlib.md5('%s:%s' % (user.user_id(), apiAddress)).hexdigest()
         buffr_instance.last_known_data = None
         buffr_instance.buffr_version = current_api_version
-        buffr_instance.put()  # this is so we can get a key for the next step
-        buffr_instance.end_point = hashlib.md5(str(buffr_instance.key())).hexdigest()
         buffr_instance.put()
+        memcache.flush_all()
         logging.info('Added new Buffr to datastore')
+        taskqueue.add(url='/confirm_working_url', params={'key': buffr_instance.key()})
         render(self, 'addbuffer.html', {'to_console': to_console,
                                         'submitted': True,
                                         'apiAddress': apiAddress})
@@ -147,36 +147,44 @@ class LoginHandler(webapp2.RequestHandler):
 
 
 class BuffrdDataServerHandler(webapp2.RequestHandler):
-    def get(self, current_buffr_id, wut, relative_api_url):
+    def get(self, current_buffr_id, relative_api_url):
         logging.info('current_buffr_id = %s' % (current_buffr_id))
         logging.info('relative_url = %s' % (relative_api_url))
 
         if current_buffr_id:
+            # logging.info('relative_url; ""')
             if not relative_api_url:
-                relative_api_url = '/'
+                relative_api_url = ''
             else:
                 relative_api_url = '/' + relative_api_url
 
-            query = Buffr.all()
-            query.filter('end_point =', current_buffr_id)
-            if len(query.fetch(1)) != 0:
-                selected_buffr = query.fetch(1)[0]
+            selected_buffr = memcache.get(current_buffr_id)
+            if not selected_buffr:
+                query = Buffr.all()
+                query.filter('end_point =', current_buffr_id)
+                if len(query.fetch(1)) != 0:
+                    logging.debug('Selected buffr not found in memcache, found in datastore')
+                    selected_buffr = query[0]
+                else:
+                    logging.debug('Could not find requested buffr in datastore or memcache')
+                    self.response.write('<!-- no such buffr -->')
+                    return
+            else:
+                logging.debug('Selected buffr found in memcache')
 
-                # ensure that there is a / between the apiAddress and the relative url
+            # ensure that there is a / between the apiAddress and the relative url
+            if relative_api_url:
                 if not selected_buffr.apiAddress.endswith('/') and not relative_api_url.startswith('/'):
                     url_to_request = selected_buffr.apiAddress + '/' + relative_api_url
                 else:
                     url_to_request = selected_buffr.apiAddress + relative_api_url
-
-                # ensure that the api address has a valid protocol extension
-                if url_to_request.split(':')[0] not in ['https', 'http', 'ftp']:
-                    url_to_request = 'http://' + url_to_request
-                logging.info('url_to_request; ' + str(url_to_request))
-
-                self.response.write(get_url_content(selected_buffr, url_to_request, self))
             else:
-                self.response.write('<!-- no such buffr -->')
-                # self.error(301)
+                url_to_request = selected_buffr.apiAddress
+
+            logging.info('url_to_request; ' + str(url_to_request))
+
+            self.response.write(get_buffr_content(selected_buffr, url_to_request, self))
+            # self.error(301)
         else:
             self.response.write('<!-- malformed url -->')
             # self.error(301)
@@ -207,26 +215,39 @@ class Administrator(webapp2.RequestHandler):
             self.redirect('/login?redirect=/admin')
 
 
-class TestHandler(webapp2.RequestHandler):
-    def get(self):
-        self.response.write('<h2>testing</h2>')
-        self.response.write(self.request.get('poll_id'))
+class URLValidatorHandler(webapp2.RequestHandler):
+    def post(self):
+        buffr_instance = db.get(self.request.get('key'))
+        url = ' '.join(buffr_instance.apiAddress.split())
+        if url != buffr_instance.apiAddress:
+            buffr_instance.apiAddress = url
 
-# class CurrentTimeHandler(webapp2.RequestHandler):
-#     def get(self):
-#         self.response.write(json.dumps({'time': (time.ctime())}))
-#         (r'/cur_time.*', CurrentTimeHandler),  # this is for offline testing purposes
+        try:
+            urlfetch.fetch(url)
+        except urlfetch.DownloadError:
+            logging.debug('Could not validate url.')
+            return
+        except urlfetch.InvalidURLError:
+            logging.debug('Could not validate url.')
+            return
+
+        logging.debug('URL successfully validated')
+        buffr_instance.known_as_valid = True
+        buffr_instance.put()
+        memcache.flush_all()
+
 
 buffr_server_regex = (
-    r'/api/v1/'                   # Match the beginning of the url
-    r'(?P<buffr_id>\w{32})'       # match the md5 sum of the buffr, 32 instances of any word character
-    r'($|/(?P<relative_url>.+))'  # optionally, match a relative URL of one or more chars in length.
-                                  # else, match the end of the URL
+    r'/api/v1/'                             # Match the beginning of the url
+    r'(?P<buffr_id>[^/]*)'                  # match the key of the buffr, any length of any charactor bar the forward slash
+    r'(?:(?:|/)$|/(?P<relative_url>.+))'    # optionally, match a relative URL of one or more chars in length. optional forward slash
+                                            # else, match the end of the URL
     )
 
+
 buffr_flusher_regex = (
-    r'/api/v1/flush/'                   # Match the beginning of the url
-    r'(?P<buffr_id>\w{32})'       # match the md5 sum of the buffr, 32 instances of any word character
+    r'/api/v1/flush/'           # Match the beginning of the url
+    r'(?P<buffr_id>[^/]*)'      # match the key of the buffr, any length of any charactor bar the forward slash
     )
 
 
@@ -239,6 +260,7 @@ app = webapp2.WSGIApplication(
         (r'/admin', Administrator),
         (buffr_flusher_regex, BuffrdDataFlusherHandler),
         (buffr_server_regex, BuffrdDataServerHandler),
+        (r'/confirm_working_url', URLValidatorHandler),
         (r'/', MainHandler)
     ],
     debug=True)

@@ -1,28 +1,39 @@
 {% extends "base.html" %}
 {% block content %}
         {% ifnotequal user None %}
-        <div class="column">
+        <div class="column full_width">
             <img class="user_icon" src="{%if gravatar%}{{gravatar}}{%else%}/images/default_user_80.png{%endif%}"></img>
             <h2  class="username">{{ user.nickname }}</h2>
             <br>
-            <ul class="square indent-by-65">
+            <hr>
+            {% if all_buffrs %}
+            <ul class="bounding_box">
             {% for buffr in all_buffrs %}
-                <li>
-                    <h4>{{ buffr.apiName }}</h4>
-                    <!-- {{ buffr.apiAddress|safe }} -->
-                    Updated every {{ buffr.user_readable_update_interval }}.<br>
-                    Accessable at <a href="http://web-sniffer.net/?url={{ currentAddress }}/api/v1/{{ buffr.end_point }}&submit=Submit&http=1.1&gzip=yes&type=GET&uak=11">
-                        {{ currentAddress }}/api/v1/{{ buffr.end_point }}
-                    </a>
+                <li class="buffr_row">
+                    <img class="buffr_column buffr_status"
+                        src="images/{% if buffr.known_as_valid %}glyphicons_206_ok_2.png{%else%}glyphicons_207_remove_2.png{%endif%}"
+                        title="{% if buffr.known_as_valid %}Buffr OK{%else%}Buffr Not Okay{%endif%}"
+                        ></img>
+                    <div class="buffr_column"><strong><a href="{{ currentAddress }}/api/v1/{{ buffr.end_point }}">{{ buffr.apiName }}</a></strong></div>
+                    <div class="buffr_column">Updated every {{ buffr.user_readable_update_interval }}.</div>
+                    <div class="buffr_column delete_button_container">
+                        <a href="#">
+                            <img
+                                data-key="{{buffr.end_point}}"
+                                class="delete_button"
+                                src="images/glyphicons_197_remove.png"></img>
+                        </a>
+                    </div>
+                    </br>
                 </li>
-            {% empty %}
-            <h4>You do not have any Buffr's configured. <a href="/addbuffr">Go create one!<a/></h4>
             {% endfor %}
-            <ul>
+            </ul>
+            {% else %}
+            <h4>You do not have any Buffr's configured. <a href="/addbuffr">Go create one!<a/></h4>
+            {% endif %}
+            <hr>
         </div>
-        <script type="text/javascript">
-            
-        </script>
+        <script type="text/javascript" src="js/userinfo.js"></script>
         {% else %}
         <div class="column">
             <h4>

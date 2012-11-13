@@ -12,5 +12,41 @@
 }
 
 .indent-by-65 { margin-top: 65px; }
-
 .float_left { float: left; }
+.full_width { width: 100%; }
+.bounding_box { margin-bottom: 10px; }
+.bounding_box li:nth-of-type(even) { background-color: #E8E8E8; }
+
+.buffr_status {
+    height: 10px;
+    width: 13px;
+    margin-top: 5px;
+}
+
+.delete_button_container {
+    display: block;
+    padding: 0;
+    float: right;
+}
+
+.delete_button {
+    margin-top: 1px;
+    width: 15px;
+}
+
+.buffr_row {
+    margin-bottom: 2px;
+    height: 19px;
+    border-left: solid;
+}
+
+.buffr_row:hover {
+    border-color: #7E6F6F;
+}
+
+.buffr_column {
+    display: inline-block;
+    white-space: nowrap;
+    margin-left: 5px;
+}
+

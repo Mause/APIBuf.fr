@@ -22,6 +22,9 @@
     <link rel="stylesheet" href="stylesheets/skeleton.css">
     <link rel="stylesheet" href="stylesheets/layout.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/custom.css">
+    <script type="text/javascript" src="js/jquery-1.8.2.min.js"></script>
+    <script type="text/javascript" src="js/jquery-ui-1.9.1.min.js"></script>
+    <!-- <link rel="stylesheet" type="text/css" href="stylesheets/css3_monochrome_icon_set.css"> -->
 
     <!--[if lt IE 9]>
         <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
@@ -43,24 +46,22 @@
     ================================================== -->
     <div class="container">
         <div class="sixteen columns">
-            <h1 class="remove-bottom" style="margin-top: 40px"><a href="/">API Buf.fr</a></h1>
+            <h1 class="remove-bottom" style="margin-top: 40px"><a href="/">API Buf.fr Alpha</a></h1>
             <h5>Simple API load alleviation</h5>
-            <!-- <h5 class="" style="margin-right: 5px; margin-top: 40px;"> -->
-                    {% if logged_in %}
+            {% if logged_in %}
             <span class="offset-by-eleven">
                     <a href="/user">Your Buffr's</a> |
                     <a href="/addbuffr">Add a Buffr</a> |
-                    {% else %}
+            {% else %}
             <span class="offset-by-fifteen">
-                    {% endif %}
-                    <a href="{{ appropriate_acct_url }}">
-                        {% if logged_in %}
-                        Logout
-                        {% else %}
-                        Login
-                        {% endif %}
-                    </a>
-            <!-- </h5> -->
+            {% endif %}
+            <a href="{{ appropriate_acct_url }}">
+                {% if logged_in %}
+                Logout
+                {% else %}
+                Login
+                {% endif %}
+            </a>
         </span>
         </div>
         <hr />
@@ -73,15 +74,14 @@
     <!-- "intelligent" debugging -->
     <script type="text/javascript">
         debug_data='{{ to_console|safe }}';
-        console.log('Spiting debug_data data...');
+        console.log('Debug data start;');
         if (debug_data !== ''){
-            console.log('Size: '+debug_data.length);
             debug_data=JSON.parse(debug_data);
-            for(frag in debug_data){
-                console.log(frag+': '+debug_data[frag]);
+            for(i in debug_data){
+                console.log(i+': '+debug_data[i]);
             }
         }
-        console.log('Done');
+        console.log('Debug data end;');
     </script>
 
 

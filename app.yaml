@@ -1,5 +1,5 @@
 application: apibuffr
-version: 1-0018
+version: 1-0021
 runtime: python27
 api_version: 1
 threadsafe: yes
@@ -21,6 +21,9 @@ handlers:
 - url: /favicon\.ico
   static_files: favicon.ico
   upload: favicon\.ico
+
+- url: /ajax.*
+  script: ajax.app
 
 - url: .*
   script: visual.app
