@@ -29,7 +29,7 @@ class DeleteHandler(webapp2.RequestHandler):
         user = users.get_current_user()
         logging.info('Buffr id to delete; ' + current_buffr_id)
         if current_buffr_id:
-            # delete the individua
+            # delete the individual cache
             memcache.delete(current_buffr_id)
             memcache.delete('%s-buffrs' % user.user_id())
 

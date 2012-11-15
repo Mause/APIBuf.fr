@@ -21,12 +21,13 @@ import webapp2
 from utils import is_valid_url
 from utils import get_gravatar
 from functional import render
+from functional import URLValidatorHandler
 from functional import get_buffr_content
 
 from google.appengine.ext import db
 from google.appengine.api import users
 from google.appengine.api import memcache
-from google.appengine.api import urlfetch
+# from google.appengine.api import urlfetch
 from google.appengine.api import taskqueue
 
 
@@ -56,7 +57,7 @@ class Buffr(db.Model):
     update_interval = db.IntegerProperty()
     user_readable_update_interval = db.StringProperty()
     buffr_version = db.FloatProperty()
-    last_known_data = db.StringProperty()
+    last_known_data = db.StringProperty(multiline=True)
     known_as_valid = db.BooleanProperty()
     end_point = db.StringProperty()
 
@@ -152,47 +153,40 @@ class BuffrdDataServerHandler(webapp2.RequestHandler):
         logging.info('relative_url = %s' % (relative_api_url))
 
         if current_buffr_id:
-            # logging.info('relative_url; ""')
             if not relative_api_url:
                 relative_api_url = ''
             else:
                 relative_api_url = '/' + relative_api_url
 
-            selected_buffr = memcache.get(current_buffr_id)
-            if not selected_buffr:
+            selected_buffr_info = memcache.get(current_buffr_id)
+            if not selected_buffr_info:
                 query = Buffr.all()
                 query.filter('end_point =', current_buffr_id)
-                if len(query.fetch(1)) != 0:
+                query = query.fetch(1)
+                if len(query) != 0:
                     logging.debug('Selected buffr not found in memcache, found in datastore')
-                    selected_buffr = query[0]
+                    selected_buffr_info = {}
+                    selected_buffr_info['instance'] = query[0]
                 else:
                     logging.debug('Could not find requested buffr in datastore or memcache')
                     self.response.write('<!-- no such buffr -->')
+                    self.error(301)
                     return
             else:
                 logging.debug('Selected buffr found in memcache')
 
-            # ensure that there is a / between the apiAddress and the relative url
-            if relative_api_url:
-                if not selected_buffr.apiAddress.endswith('/') and not relative_api_url.startswith('/'):
-                    url_to_request = selected_buffr.apiAddress + '/' + relative_api_url
-                else:
-                    url_to_request = selected_buffr.apiAddress + relative_api_url
-            else:
-                url_to_request = selected_buffr.apiAddress
-
-            logging.info('url_to_request; ' + str(url_to_request))
-
-            self.response.write(get_buffr_content(selected_buffr, url_to_request, self))
-            # self.error(301)
+            self.response.write(
+                get_buffr_content(selected_buffr_info, relative_api_url, self))
         else:
             self.response.write('<!-- malformed url -->')
-            # self.error(301)
+            self.error(301)
 
 
 class BuffrdDataFlusherHandler(webapp2.RequestHandler):
-    def get(self, buffr_id):
-        self.response.write('Hey! GTFO!')
+    def get(self, current_buffr_id):
+        user = users.get_current_user()
+        memcache.delete(current_buffr_id)
+        memcache.delete('%s-buffrs' % user.user_id())
 
 
 class Administrator(webapp2.RequestHandler):
@@ -213,29 +207,6 @@ class Administrator(webapp2.RequestHandler):
             self.redirect('/')
         else:
             self.redirect('/login?redirect=/admin')
-
-
-class URLValidatorHandler(webapp2.RequestHandler):
-    def post(self):
-        buffr_instance = db.get(self.request.get('key'))
-        url = ' '.join(buffr_instance.apiAddress.split())
-        if url != buffr_instance.apiAddress:
-            buffr_instance.apiAddress = url
-
-        try:
-            urlfetch.fetch(url)
-        except urlfetch.DownloadError:
-            logging.debug('Could not validate url.')
-            return
-        except urlfetch.InvalidURLError:
-            logging.debug('Could not validate url.')
-            return
-
-        logging.debug('URL successfully validated')
-        buffr_instance.known_as_valid = True
-        buffr_instance.put()
-        memcache.flush_all()
-
 
 buffr_server_regex = (
     r'/api/v1/'                             # Match the beginning of the url

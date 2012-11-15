@@ -8,6 +8,9 @@ libraries:
 - name: webapp2
   version: "2.5.1"
 
+builtins:
+- appstats: on
+
 handlers:
 - url: /js
   static_dir: js

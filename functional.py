@@ -1,12 +1,13 @@
 import time
 import os
-import hashlib
 import logging
 try:
     import json
 except ImportError:
     import simplejson as json
 
+import webapp2
+from google.appengine.ext import db
 from google.appengine.api import users
 from google.appengine.api import memcache
 from google.appengine.api import urlfetch
@@ -31,57 +32,77 @@ def render(handler, filename, template_values):
     handler.response.out.write(template.render(path, template_values))
 
 
-def get_buffr_content(buffr_instance, url, handler=None):
+def get_buffr_content(buffr_info, relative_api_url, handler=None):
     "this is a caching function, to help keep wait time short"
     # ensure URL is good
-    url = ' '.join(url.split())
-    result = None
-    lasttime_memcache_key = hashlib.md5(
-        str(buffr_instance.key()) + ":sincelasttime").hexdigest()
-    lasttime = memcache.get(lasttime_memcache_key)
-    url_hash = hashlib.md5('%s%s' % (buffr_instance.key(), url)).hexdigest()
+    buffr_info['instance'].apiAddress = ' '.join(
+        buffr_info['instance'].apiAddress.split())
 
-    logging.info("lasttime: " + str(lasttime))
-    if lasttime:
-        logging.info("difference: " + str(time.time() - lasttime))
-    if lasttime != None and (time.time() - lasttime) > buffr_instance.update_interval:
+    cur_address = None
+    # buffr_info['instance'].apiAddress
+
+    retrieve_new = False
+
+    if ('lasttime' in buffr_info and buffr_info['lasttime'] != None):
+        if (time.time() - buffr_info['lasttime']) > buffr_info['instance'].update_interval:
+            logging.info("%s > %s seconds. will retrieve data" % (
+                time.time() - buffr_info['lasttime'],
+                buffr_info['instance'].update_interval))
+            retrieve_new = True
+        else:
+            logging.info('New data not required')
+            retrieve_new = False
+    else:
+        logging.info('No lasttime info. Will retrieve new data')
+        retrieve_new = True
+
+    if not buffr_info['instance'].last_known_data:
+        retrieve_new = True
+
+    if retrieve_new:
+        logging.info('Getting the result from the endpoint')
         try:
-            logging.info(
-                "retrieving data from the users api; time > %s seconds" % buffr_instance.update_interval)
-            result = urlfetch.fetch(url).read()
-            if buffr_instance.last_known_data == None:
-                # TODO: implement unstable API handling here
-                pass
+            request_object = urlfetch.fetch(cur_address)
+        except urlfetch.InvalidURLError:
+            logging.info('Bad URL; "%s"' % cur_address)
         except urlfetch.DownloadError:
             logging.info('Download error. Oh noes!')
-            result = None
-        memcache.set(lasttime_memcache_key, time.time())
-    if not result:
-        logging.info("result was none, trying memcache and then the datastore")
-        result = memcache.get(str(url_hash))
-        if result:
-            logging.info('Memcache get successful')
-            return result
+            handler.error(408)
+            return
         else:
-            logging.info('Getting the result from the datastore')
-            try:
-            # if True:
-                request_object = urlfetch.fetch(url)
-            except urlfetch.InvalidURLError:
-                logging.info('Bad URL; "%s"' % url)
-            except urlfetch.DownloadError:
-                handler.error(408)
-                # TODO:
-                #    what does 408 mean?
-                #    lets just stick with 404 for the moment
-                # handler.error(404)
-                return
-            else:
-                logging.info('URL: %s' % request_object.final_url)
-                # logging.info("url_data" + str(request_object.content))
-                # logging.info("url_data" + str(dir(url_data))
-                memcache.set(lasttime_memcache_key, time.time())
-                memcache.set(str(url_hash), request_object.content)
-                return request_object.content
+            buffr_info['instance'].last_known_data = request_object.content
+            buffr_info['lasttime'] = time.time()
+            memcache.set(buffr_info['instance'].end_point, buffr_info)
+            logging.info('Requested URL; %s' % ())
+            logging.info(request_object.content)
+            return request_object.content
     else:
-        return result
+        return buffr_info['instance'].last_known_data
+
+
+class URLValidatorHandler(webapp2.RequestHandler):
+    def post(self):
+        buffr_instance = db.get(self.request.get('key'))
+        url = ' '.join(buffr_instance.apiAddress.split())
+        if url != buffr_instance.apiAddress:
+            buffr_instance.apiAddress = url
+
+        try:
+            urlfetch.fetch(url)
+        except urlfetch.DownloadError:
+            logging.debug('Could not validate url.')
+            return
+        except urlfetch.InvalidURLError:
+            logging.debug('Could not validate url.')
+            return
+
+        logging.debug('URL successfully validated')
+        buffr_instance.known_as_valid = True
+        buffr_instance.put()
+        memcache.flush_all()
+
+
+class BackendUpdateHander(webapp2.RequestHandler):
+    "Is passed a Buffr Instance, and puts it into the datastore, reducing user facing latency"
+    def post(self):
+        pass
